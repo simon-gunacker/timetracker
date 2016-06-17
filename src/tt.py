@@ -5,6 +5,7 @@ import sqlite3
 from os import system, makedirs
 from os.path import abspath, isfile, dirname
 from time import time, gmtime, strftime
+from threading import Timer
 
 # configurations
 DB_NAME = '../data/timings.db'
@@ -19,6 +20,37 @@ def setup():
         "CREATE TABLE timings(tag VARCHAR, start DATE, end DATE, delta DATE)")
     con.commit()
     con.close()
+
+
+class RepeatedTimer(object):
+
+    def __init__(self, interval, function, tag=None):
+        self._timer = None
+        self.interval = interval
+        self.function = function
+        self.tag = tag
+        self.is_running = False
+        self.start()
+
+    def _run(self):
+        self.is_running = False
+        self.start()
+        self.function("Currently working on %s" % self.tag, show=self.tag is not None)
+
+    def start(self):
+        if not self.is_running:
+            self._timer = Timer(self.interval, self._run)
+            self._timer.start()
+            self.is_running = True
+
+    def stop(self):
+        self._timer.cancel()
+        self.is_running = False
+
+
+def notify(message, show=True):
+    if show:
+        system("notify-send '%s'" % message)
 
 
 class Record:
@@ -55,6 +87,7 @@ class TTShell(cmd.Cmd):
         self.con.row_factory = lambda cur, row: Record(*row)
         self.cur = self.con.cursor()
         self.rec = Record()
+        self.timer = RepeatedTimer(30 * 60, notify)
 
     def do_start(self, arg):
         'start timing a new activity'
@@ -62,8 +95,11 @@ class TTShell(cmd.Cmd):
         if (len(tag) > 1):
             print("Illegal argument")
         else:
-            self.rec = Record(tag[0])
+            tag = tag[0]
+            self.rec = Record(tag)
             self.rec.start_time()
+            self.timer.tag = tag
+            notify("Currently working on %s" % tag)
 
     def do_stop(self, arg):
         'stop current timing activity'
@@ -72,7 +108,10 @@ class TTShell(cmd.Cmd):
         else:
             self.rec.end_time()
             self.rec.save(self.cur)
+            notify("Done working on %s" % self.timer.tag)
+            self.timer.tag = None
             print(self.rec)
+
 
     def do_list(self, arg):
         'list all recorded timings'
@@ -87,8 +126,11 @@ class TTShell(cmd.Cmd):
 
     def do_exit(self, arg):
         'exit current session'
+        if self.rec.start is not None and self.rec.end is None:
+            self.do_stop(None)
         self.con.commit()
         self.con.close()
+        self.timer.stop()
         return True
 
 if __name__ == "__main__":

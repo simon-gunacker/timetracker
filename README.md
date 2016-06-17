@@ -1,8 +1,11 @@
 # timetracker
+*timetracker* is a simple commandline tool fro tracking your time.
+
+## Dependencies And Requirements
+It requires `python3` and `linux`.
 
 ## Current State Of Development
-
-*timetracker* is a simple commandline tool fro tracking your time. It requires `python3` and `linux`. To run timetracker, simply invoke `.src/tt.py` from your commandline. *timetracker* supports the options listed below. Note that timetracker supports autocompletion for all commands.
+To run timetracker, simply invoke `.src/tt.py` from your commandline. *timetracker* supports the options listed below. Note that timetracker supports autocompletion and history for all commands.
 
 ### start an activity
 To start an activity, type `start <name_of_activity>`
