@@ -1,19 +1,28 @@
 #!/usr/bin/python3
+# coding=utf-8
+
+
+"""tt.py: a simple timetracking cli"""
+
+__author__ = "Simon Gunacker"
+__copyright__ = "Copyright 2016, Graz"
+
 import cmd
 import readline
 import sqlite3
 from os import system, makedirs
-from os.path import abspath, isfile, dirname
+from os.path import abspath, isfile, dirname, split, expanduser
 from time import time, gmtime, strftime
 from threading import Timer
 
+
 # configurations
-DB_NAME = '../data/timings.db'
+# DB_NAME = split(dirname(abspath(__file__)))[0] + '/data/timings.db'
+DB_NAME = expanduser('~') + '/.timetracker/timings.db'
 
 
 def setup():
-    path = abspath(DB_NAME)
-    makedirs(dirname(path), mode=0o755, exist_ok=True)
+    makedirs(dirname(DB_NAME), mode=0o755, exist_ok=True)
     con = sqlite3.connect(DB_NAME)
     cur = con.cursor()
     cur.execute(
@@ -35,7 +44,8 @@ class RepeatedTimer(object):
     def _run(self):
         self.is_running = False
         self.start()
-        self.function("Currently working on %s" % self.tag, show=self.tag is not None)
+        self.function("Currently working on %s" %
+                      self.tag, show=self.tag is not None)
 
     def start(self):
         if not self.is_running:
@@ -111,7 +121,6 @@ class TTShell(cmd.Cmd):
             notify("Done working on %s" % self.timer.tag)
             self.timer.tag = None
             print(self.rec)
-
 
     def do_list(self, arg):
         'list all recorded timings'
