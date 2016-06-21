@@ -3,6 +3,8 @@
 
 ## Dependencies And Requirements
 It requires `python3` and `linux`.
+Furthermore, one has to have `mysql` and `mysql-config`. To install it, invoke
+`sudo apt-get install python3-dev libmysqlclient-dev`. Afterwards, you can install `mysqlclient` using `sudo pip3 install mysqlclient`. Finally, you have to copy `settings.cfg.default` to `settings.cfg` and set all your db configurations
 
 ## Current State Of Development
 To run timetracker, simply invoke `.src/tt.py` from your commandline. *timetracker* supports the options listed below. Note that timetracker supports autocompletion and history for all commands.

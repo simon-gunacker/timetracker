@@ -9,24 +9,28 @@ __copyright__ = "Copyright 2016, Graz"
 
 import cmd
 import readline
-import sqlite3
+import configparser
+import MySQLdb
 from os import system, makedirs
 from os.path import abspath, isfile, dirname, split, expanduser
-from time import time, gmtime, strftime
+from time import time, gmtime, strftime, localtime
 from threading import Timer
 
 
 # configurations
-# DB_NAME = split(dirname(abspath(__file__)))[0] + '/data/timings.db'
-DB_NAME = expanduser('~') + '/.timetracker/timings.db'
+config = configparser.ConfigParser()
+config.read('settings.cfg')
+host = config['Database']['host']
+db = config['Database']['db']
+user = config['Database']['user']
+passwd = config['Database']['passwd']
 
 
 def setup():
-    makedirs(dirname(DB_NAME), mode=0o755, exist_ok=True)
-    con = sqlite3.connect(DB_NAME)
+    con = MySQLdb.connect(host, user, passwd, db)
     cur = con.cursor()
     cur.execute(
-        "CREATE TABLE timings(tag VARCHAR, start DATE, end DATE, delta DATE)")
+        "CREATE TABLE timings(tag VARCHAR(255), start DATETIME, end DATETIME)")
     con.commit()
     con.close()
 
@@ -76,11 +80,13 @@ class Record:
 
     def end_time(self):
         self.end = time()
-        self.delta = self.end - self.start
+        self.delta = self.start - self.end
 
     def save(self, cur):
-        cur.execute("INSERT INTO timings VALUES(?, ?, ?, ?)",
-                    (self.tag, self.start, self.end, self.delta))
+        start = strftime("%Y-%m-%d %H:%M:%S", localtime(self.start))
+        end = strftime("%Y-%m-%d %H:%M:%S", localtime(self.end))
+        cur.execute("INSERT INTO timings VALUES(%s, %s, %s)",
+                    (self.tag, start, end))
 
     def __str__(self):
         timestr = strftime("%H:%M", gmtime(float(self.delta)))
@@ -93,9 +99,6 @@ class TTShell(cmd.Cmd):
 
     def __init__(self, *args, **kwargs):
         super(TTShell, self).__init__(*args, **kwargs)
-        self.con = sqlite3.connect(DB_NAME)
-        self.con.row_factory = lambda cur, row: Record(*row)
-        self.cur = self.con.cursor()
         self.rec = Record()
         self.timer = RepeatedTimer(30 * 60, notify)
 
@@ -117,7 +120,11 @@ class TTShell(cmd.Cmd):
             print("No activity started")
         else:
             self.rec.end_time()
-            self.rec.save(self.cur)
+            con = MySQLdb.connect(host, user, passwd, db)
+            cur = con.cursor()
+            self.rec.save(cur)
+            con.commit()
+            con.close()
             notify("Done working on %s" % self.timer.tag)
             self.timer.tag = None
             print(self.rec)
@@ -125,10 +132,13 @@ class TTShell(cmd.Cmd):
     def do_list(self, arg):
         'list all recorded timings'
         tag = "%s%%" % arg if arg is not None else "%"
-        self.cur.execute(
-            "SELECT tag, '1', '1', sum(delta)  FROM timings WHERE tag LIKE ? GROUP BY tag", [tag])
-        for row in self.cur:
+        con = MySQLdb.connect(host, user, passwd, db)
+        cur = con.cursor()
+        cur.execute(
+            "SELECT tag, -1, -1, sum(end-start)  FROM timings WHERE tag LIKE %s GROUP BY tag", [tag])
+        for row in map(lambda x: Record(*x), cur):
             print(row)
+        con.close()
 
     def do_sync(self, arg):
         'syncs to database file to webserver using rysnc command'
@@ -137,13 +147,11 @@ class TTShell(cmd.Cmd):
         'exit current session'
         if self.rec.start is not None and self.rec.end is None:
             self.do_stop(None)
-        self.con.commit()
-        self.con.close()
         self.timer.stop()
         return True
 
 if __name__ == "__main__":
-    if not isfile(DB_NAME):
-        setup()
+    # if not isfile(DB_NAME):
+    #    setup()
     system("clear")
     TTShell().cmdloop()
