@@ -82,7 +82,7 @@ class Record:
 
     def end_time(self):
         self.end = time()
-        self.delta = self.start - self.end
+        self.delta = self.end - self.start
 
     def save(self, cur):
         start = strftime("%Y-%m-%d %H:%M:%S", localtime(self.start))
