@@ -18,8 +18,10 @@ from threading import Timer
 
 
 # configurations
+CFGFILE = expanduser("~") + "/.timetracker/settings.cfg"
+print(CFGFILE)
 config = configparser.ConfigParser()
-config.read('settings.cfg')
+config.read(CFGFILE)
 host = config['Database']['host']
 db = config['Database']['db']
 user = config['Database']['user']
@@ -135,7 +137,7 @@ class TTShell(cmd.Cmd):
         con = MySQLdb.connect(host, user, passwd, db)
         cur = con.cursor()
         cur.execute(
-            "SELECT tag, -1, -1, sum(end-start)  FROM timings WHERE tag LIKE %s GROUP BY tag", [tag])
+            "SELECT tag, -1, -1, sum(TIME_TO_SEC(TIMEDIFF(end, start))) FROM timings WHERE tag LIKE %s GROUP BY tag, MONTH(start) ORDER BY start", [tag])
         for row in map(lambda x: Record(*x), cur):
             print(row)
         con.close()
